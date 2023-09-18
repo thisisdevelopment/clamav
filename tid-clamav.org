@@ -1,5 +1,5 @@
-#+TITLE: This Is ClamScan scripts
-#+SUBTITLE: a collection of scripts for easy and faster clamscanning
+#+TITLE: This Is =clamav-scan=
+#+SUBTITLE: A collection of scripts for easy, faster and schedule-based clamd-scanning
 
 * About this package
 This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
@@ -25,32 +25,29 @@ sudo apt remove clamav-scan && sudo apt autoremove
 * Testing
 You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  This file is not an actual virus and harmless.  Its purpose is to verify a virusscanner works as expected.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
 
-* development
-** package version 
-the package version defined here will be reflected throughout the entire package
+* Development
+** Package version 
+The package version defined here will be reflected throughout the entire package
 
 #+name: version
 #+begin_src :export none
-0.4
+0.1
 #+end_src
 
-** scripts and configs
-   closed: [2023-09-18 ma 09:43]
+** Scripts and configs
   
 *** clam-scan.sh
-this script will be executed to initiate the scan.
-
-the first part of the scripts consists of scan configuration and reading the additional scan.conf file.
+This script will be executed to initiate the scan.  The first part of the scripts consists of scan configuration and reading the additional scan.conf file.
   
 #+begin_src sh :mkdirp yes :tangle src/usr/local/sbin/clamav-scan :shebang "#!/bin/bash" :noweb yes
 # clamav-scan.sh
-export clamav_scan_version="<<version>>"
-export log="/var/log/clamav/scan.log"
+export CLAMAV_SCAN_VERSION="<<VERSION>>"
+export lOG="/var/log/clamav/scan.log"
 
 # set defaults 
-export scan_path="/home/"
-export ionice_class=3
-export nice_priority=19
+export SCAN_PATH="/home/"
+export IONICE_CLASS=3
+export NICE_PRIORITY=19
 
 # source scan.conf for user customization
 if [ -f "/etc/clamav/scan.conf" ]; then
@@ -58,135 +55,129 @@ if [ -f "/etc/clamav/scan.conf" ]; then
 fi
 #+end_src
 
-to be keep the currently logged in user up to date on the scanning progress, we need to be able to send them notifications.  we've added it to a function to make it reusable.  
+To be able to keep the currently logged in user up to date on the scanning progress, we need to be able to send them notifications.  We've added it to a function to make it reusable.  
 #+begin_src sh :tangle src/usr/local/sbin/clamav-scan
 # notify function, shows notifications to all logged in users
+export XUSERS
 
-export xusers
 function notify {
   local title=$1
   local body=$2
     
-  # send the alert to systemd logger if exist
+  # Send the alert to systemd logger if exist
   if [[ -n $(command -v systemd-cat) ]] ; then
     echo "$title - $body" | /usr/bin/systemd-cat -t clamav -p emerg 
   fi
 
-  # send an alert to all graphical users.
-  xusers=($(who|awk '{print $1$nf}'|sort -u))
-  for xuser in $xusers; do
-    name=(${xuser/(/ })
-    display=${name[1]/)/}
-    dbus_address=unix:path=/run/user/$(id -u ${name[0]})/bus
-    echo "run $name - $display - $dbus_address -" >> /tmp/testlog
-    /usr/bin/sudo -u ${name[0]} display=${display} \
-      dbus_session_bus_address=${dbus_address} \
-      path=${path} \
+  # Send an alert to all graphical users.
+  XUSERS=($(who|awk '{print $1$NF}'|sort -u))
+  for XUSER in $XUSERS; do
+    NAME=(${XUSER/(/ })
+    DISPLAY=${NAME[1]/)/}
+    DBUS_ADDRESS=unix:path=/run/user/$(id -u ${NAME[0]})/bus
+    echo "run $NAME - $DISPLAY - $DBUS_ADDRESS -" >> /tmp/testlog
+    /usr/bin/sudo -u ${NAME[0]} DISPLAY=${DISPLAY} \
+      DBUS_SESSION_BUS_ADDRESS=${DBUS_ADDRESS} \
+      PATH=${PATH} \
       /usr/bin/notify-send -i security-low "$title" "$body"
   done
 
 }
 #+end_src
 
-the following part encapsulates the actual scan.  it creates a few temporary files for output processing and then starts the scan.
-this piece needs some additional love like configuring the location infected files are moved to if found
+The following part encapsulates the actual scan.  it creates a few temporary files for output processing and then starts the scan.
+This piece needs some additional love like configuring the location infected files are moved to if found
 #+begin_src sh :tangle src/usr/local/sbin/clamav-scan
+export SUMMARY_FILE=`mktemp`
+export FIFO_DIR=`mktemp -d`
+export FIFO="$FIFO_DIR/log"
 
-# -------------------- start scan -----------------------
-export summary_file=`mktemp`
-export fifo_dir=`mktemp -d`
-export fifo="$fifo_dir/log"
-export scan_status
-export infected_summary
+export SCAN_STATUS
+export INFECTED_SUMMARY
 
-mkfifo "$fifo"
-tail -f "$fifo" | tee -a "$log" "$summary_file" &
+mkfifo "$FIFO"
+tail -f "$FIFO" | tee -a "$LOG" "$SUMMARY_FILE" &
 
-notify "virus scan started" ""
+notify "Virus scan started" ""
 
-echo "------------ scan start ------------" > "$fifo"
-echo "running scan on `date`" > "$fifo"
-echo "scanning $target" > "$fifo"
-ionice -c $ionice_class nice -n $nice_priority \
-    clamdscan --infected \
-              --multiscan \
-              --fdpass \
-              --stdout "$scan_path" | grep -ve 'warning|error|^$' > "$fifo"
+echo "------------ SCAN START ------------" > "$FIFO"
+echo "Running scan on `date`" > "$FIFO"
+echo "Scanning $SCAN_PATH" > "$FIFO"
+ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --infected --multiscan --fdpass --stdout "$SCAN_PATH" | grep -vE 'WARNING|ERROR|^$' > "$FIFO"
 
-scan_status="${pipestatus[0]}"
-echo > "$fifo" 
+SCAN_STATUS="${PIPESTATUS[0]}"
+echo > "$FIFO" 
 
-infected_summary=`cat "$summary_file" | grep "infected files"`
+INFECTED_SUMMARY=`cat "$SUMMARY_FILE" | grep "Infected files"`
 
-rm "$summary_file"
-rm "$fifo"
-rmdir "$fifo_dir"
+rm "$SUMMARY_FILE"
+rm "$FIFO"
+rmdir "$FIFO_DIR"
 #+end_src
 
-and finally we check the response code of the scan and notify the user about the result.  
+And finally we check the response code of the scan and notify the user about the result.  
 #+begin_src sh :tangle src/usr/local/sbin/clamav-scan
 
-if [[ "$scan_status" -eq "1" ]] ; then
-    notify "virus signature(s) found" "$infected_summary"
-    exit $scan_status
+if [[ "$SCAN_STATUS" -eq "1" ]] ; then
+    notify "Virus signature(s) found" "$INFECTED_SUMMARY"
+    exit $SCAN_STATUS
 fi
 
-if [[ "$scan_status" -eq "2" ]] ; then
-    notify "error running virusscanner" "please check logs"
-    exit $scan_status
+if [[ "$SCAN_STATUS" -eq "2" ]] ; then
+    notify "Error running virusscanner" "please check logs"
+    exit $SCAN_STATUS
 fi
 
-notify "scan complete, nothing found"
+notify "Scan complete, nothing found"
 #+end_src
    
    
 *** clamav.conf
 #+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamav.conf
 # use sockets
-localsocket /var/run/clamav/clamd.ctl
-fixstalesocket true
-localsocketgroup clamav
-localsocketmode 666
+Localsocket /var/run/clamav/clamd.ctl
+FixStaleSocket true
+LocalSocketGroup clamav
+LocalSocketMode 666
 
 #
-user clamav
-preludeanalyzername clamav
-logfile /var/log/clamav/clamav.log
-logfilemaxsize 4294967295
-logtime yes
-logrotate yes
-logfacility log_local6
-extendeddetectioninfo yes
-maxconnectionqueuelength 15
-readtimeout 180
-sendbuftimeout 200
-selfcheck 3600
-bytecodetimeout 60000
-maxscantime 120000
-maxrecursion 16
-pcrematchlimit 10000
-pcrerecmatchlimit 5000
+PreludeAnalyzerName ClamAV
+LogFile /var/log/clamav/clamav.log
+LogFileMaxSize 4294967295
+LogTime yes
+LogRotate yes
+ExtendedDetectionInfo yes
+MaxConnectionQueueLength 15
+ReadTimeout 180
+SendBufTimeout 200
+SelfCheck 3600
+User clamav
+BytecodeTimeout 60000
+MaxScanTime 120000
+MaxRecursion 16
+PCREMatchLimit 10000
+PCRERecMatchLimit 5000
 
-# this might need to be determined by the number of available cpus
-maxthreads 4
+# this might need to be determined by the number of available CPUs
+MaxThreads 4
            
-# this prevents the "libclamav warning: cli_realpath: invalid arguments." error
+# this prevents the "LibClamAV Warning: cli_realpath: Invalid arguments." error
 # at least to a dir recursion of 30
-maxdirectoryrecursion 30
+MaxDirectoryRecursion 30
 
 # exludepath regexes, do we need these? will we ever run systemwide scans?
-excludepath ^/proc
-excludepath ^/run
-excludepath ^/sys
-excludepath ^/snap
+ExcludePath ^/proc
+ExcludePath ^/run
+ExcludePath ^/sys
+ExcludePath ^/snap
 
 # userspace
-excludepath \.php$
-excludepath ^/home/.+/.steam
-excludepath /node_modules/
-excludepath ^/home/.+/\.config
-excludepath /docker/volumes/
-excludepath /\.git/
+ExcludePath \.php$
+ExcludePath ^/home/.+/.steam
+ExcludePath /node_modules/
+ExcludePath ^/home/.+/\.config
+ExcludePath /docker/volumes/
+ExcludePath /\.git/
 #+end_src
 
 *** scan.conf
@@ -198,39 +189,39 @@ scan_path "/home/"
 
 *** systemd.timer
 #+begin_src conf :mkdirp yes :tangle src/etc/systemd/system/clamav-scan.timer
-[unit]
-description=run scan on workdays at lunchtime
-requires=clamav-daemon.service
+[Unit]
+Description=run scan on workdays at lunchtime
+Requires=clamav-daemon.service
 
-[timer]
-oncalendar=
-oncalendar=mon..fri 13:00
-persistent=false
-unit=clamav-scan.service
+[Timer]
+OnCalendar=
+OnCalendar=mon..fri 13:00
+Persistent=false
+Unit=clamav-scan.service
 
-[install]
-wantedby=timers.target
+[Install]
+WantedBy=timers.target
 #+end_src
 
 *** systemd.service
 #+begin_src conf :mkdirp yes :tangle src/etc/systemd/system/clamav-scan.service
-[unit]
-description=nice ionized clamav scanner with notifications
-requires=clamav-daemon.service
+[Unit]
+Description=nice ionized clamav scanner with notifications
+Requires=clamav-daemon.service
 
-[service]
-type=simple
-user=root
-execstart=/usr/local/sbin/clamav-scan
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/sbin/clamav-scan
 
-[install]
-wantedby=multi-user.target
+[Install]
+WantedBy=multi-user.target
 #+end_src
 
-** build
-this package is written using literate progamming in org-mode files.  to compile the codeblock into actual scripts you'll need emacs to tangle the files.  upon tangling the scripts will get automatically get the appropriate shebang and chmod changes if applicable.  missing directories will also be created automatically.
+** Build
+This package is written using literate progamming in org-mode files.  To compile the codeblock into actual scripts you'll need emacs to tangle the files.  upon tangling the scripts will get automatically get the appropriate shebang and chmod changes if applicable.  missing directories will also be created automatically.
 
-with emacs installed and locatable in your local =$path= you should be able to tangle the scripts using make.
+With Emacs installed you should be able to tangle the scripts using make.
 #+begin_src sh
 make tangle
 
@@ -238,9 +229,9 @@ make tangle
 # make clean tangle
 #+end_src
 
-another way is to open the =.org= file in emacs, and running =m-x org-babel-tangle ret=.
+Another way is to open the =.org= file in emacs, and running =m-x org-babel-tangle ret=.
 
-to generate the debian package you can run the =build= command.  /this command automatically runs =tangle= before generating the package so manual changes to the files will be overwritten./
+To generate the debian package you can run the =build= command.  /This command automatically runs =tangle= before generating the package so manual changes to the files will be overwritten./
 
 #+begin_src sh
 make build
@@ -248,7 +239,7 @@ make build
 # make clean build
 #+end_src
 
-installing the generated scripts on your system can be done using the =install= command.  This does not use the generated Debian package, but copies the files manually instead.  To install the files, =sudo= privileges are required.
+Installing the generated scripts on your system can be done using the =install= command.  This does not use the generated Debian package, but copies the files manually instead.  To install the files, =sudo= privileges are required.
 #+begin_src sh
 sudo make install
 #+end_src
@@ -269,7 +260,7 @@ Depends: clamav, clamav-daemon
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/preinst :shebang "#!/bin/bash"
 CLAMAV_CONF="/etc/clamav/clamav.conf"
 BACKUP_LOCATION="/etc/clamav/clamav.conf.bck"
-if [ -f "$CLAMAV_CONF" -a ! -f "$BACKUP_LOCATION"]; then
+if [ -f "$CLAMAV_CONF" -a ! -f "$BACKUP_LOCATION" ]; then
     cp "$CLAMAV_CONF" "$BACKUP_LOCATION"
 fi
 #+end_src
@@ -294,7 +285,7 @@ fi
 #+end_src
 
 ** Local
-buildstep requires emacs to extract codeblocks from this document
+Buildstep requires emacs to extract codeblocks from this document
 
 #+begin_src sh
 make clean build # requires emacs installation
