@@ -1,0 +1,336 @@
+#+TITLE: This Is ClamScan scripts
+#+SUBTITLE: a collection of scripts for easy and faster clamscanning
+
+* Package version                                                  :noexport:
+The package version defined here will be reflected throughout the entire package
+
+#+NAME: VERSION
+#+BEGIN_SRC :export none
+0.4
+#+END_SRC
+
+* TODO About this package
+This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
+
+The configuration file defines a few paths that will be skipped during scans that because they both a) contain a lot of files and b) don't have a big chance of catching infected files.
+
+The sourcecode largely based on this [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][gist]] by John A. Fedoruk, with some slight alterations. 
+
+* TODO Installation
+
+- TODO =mkdir -p /var/run/clamav= + =chown clamav:clamav /var/run/clamav= lijkt soms nodig
+  
+** Build
+
+
+
+To create the scripts they need to be tangled from this document.  Using emacs this is as easy as pressing =C-c C-v t= (or =M-x ob-tangle RET=), which will tangle all relevant files into the correct file in the src folder.  This src folder will be automatically created if it doesn't exist yet.
+
+Another option is to run to the =build= Makefile step.  This still requires emacs to be available on the host system, which will be invoked in a headless script only mode (=--batch=) and executes =org-babel-tangle-file=.
+
+
+#+begin_src sh
+make clean build # requires emacs installation
+#+end_src
+
+
+* Debian package
+This package comes with Debian control and postinst files allowing us to generate a Debian package for even easier installation.  The Debian package can be downloaded from the releases page.  To install download the latest release and install using =dpkg=.
+
+#+begin_src sh :tangle no :noweb yes
+wget https://github.com/thisisdevelopment/......file-v<<VERSION>>.deb | verify sha etc bla bla foo
+sudo dpkg -i clamav-scan.deb
+#+end_src
+
+The package comes with the following control file.
+
+#+begin_src debian-control :mkdirp yes :tangle src/DEBIAN/control :noweb yes 
+Package: clamav-scan
+Version: <<VERSION>>
+Maintainer: Jeroen Faijdherbe
+Architecture: all
+Description: Helper scripts for clamav scan automation
+Depends: clamav, clamav-daemon
+#+end_src
+
+#+begin_src sh :mkdirp yes :tangle src/DEBIAN/preinst :shebang "#!/bin/bash"
+CLAMAV_CONF="/etc/clamav/clamav.conf"
+BACKUP_LOCATION="/etc/clamav/clamav.conf.bck"
+if [ -f "$CLAMAV_CONF" -a ! -f "$BACKUP_LOCATION"]; then
+    cp "$CLAMAV_CONF" "$BACKUP_LOCATION"
+fi
+#+end_src
+
+After installation the timer will automatically activated by the installer using this =postinst= script.
+#+begin_src sh :mkdirp yes :tangle src/DEBIAN/postinst :shebang "#!/bin/bash"
+systemctl daemon-reload
+systemctl enable --now clamav-scan.timer
+#+end_src
+
+Obligatory =prerm= script that will be invoked upon removal, disabling the timer that will be removed. 
+#+begin_src sh :mkdirp yes :tangle src/DEBIAN/prerm :shebang "#!/bin/bash"
+systemctl disable clamav-scan.timer
+#+end_src
+
+#+begin_src sh :mkdirp yes :tangle src/DEBIAN/postrm :shebang "#!/bin/bash"
+CLAMAV_CONF="/etc/clamav/clamav.conf"
+BACKUP_LOCATION="/etc/clamav/clamav.conf.bck"
+if [ -f "$BACKUP_LOCATION" ]; then
+    mv "$BACKUP_LOCATION" "$CLAMAV_CONF"
+fi
+#+end_src
+
+** Local
+buildstep requires emacs to extract codeblocks from this document
+
+#+begin_src sh
+make clean build # requires emacs installation
+sudo make install
+#+end_src
+
+enable the timer
+#+begin_src sh
+sudo systemctl enable --now clamav-scan.timer
+#+end_src
+
+To run the scanner immediately:
+#+begin_src sh
+sudo make run
+# or: sudo systemctl start clamav-scan.service
+#+end_src
+
+
+* Configuration
+
+  #+begin_src sh
+sudo systemctl daemon-reload
+  #+end_src
+* TODO Scripts and Configs
+  
+** systemd.service
+#+begin_src conf :mkdirp yes :tangle src/etc/systemd/system/clamav-scan.service
+[Unit]
+Description=nice ionized clamav scanner with notifications
+Requires=clamav-daemon.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/sbin/clamav-scan
+
+[Install]
+WantedBy=multi-user.target
+#+end_src
+
+** systemd.timer
+#+begin_src conf :mkdirp yes :tangle src/etc/systemd/system/clamav-scan.timer
+[Unit]
+Description=Run scan on workdays at lunchtime
+Requires=clamav-daemon.service
+
+[Timer]
+OnCalendar=
+OnCalendar=Mon..Fri 13:00
+Persistent=false
+Unit=clamav-scan.service
+
+[Install]
+WantedBy=timers.target
+#+end_src
+
+** clamav.conf
+#+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamav.conf
+
+PreludeAnalyzerName ClamAV
+LogFile /var/log/clamav/clamav.log
+LogFileMaxSize 4294967295
+LogTime yes
+LogRotate yes
+ExtendedDetectionInfo yes
+LocalSocket /var/run/clamav/clamd.ctl
+LocalSocketGroup clamav
+LocalSocketMode 666
+MaxConnectionQueueLength 15
+ReadTimeout 180
+SendBufTimeout 200
+SelfCheck 3600
+User clamav
+BytecodeTimeout 60000
+MaxScanTime 120000
+MaxRecursion 16
+PCREMatchLimit 10000
+PCRERecMatchLimit 5000
+
+# this might need to be determined by the number of available CPUs
+MaxThreads 4
+           
+# this prevents the "LibClamAV Warning: cli_realpath: Invalid arguments." error
+# at least to a dir recursion of 30
+MaxDirectoryRecursion 30
+
+# exludepath regexes, do we need these? will we ever run systemwide scans?
+ExcludePath ^/proc
+ExcludePath ^/run
+ExcludePath ^/sys
+ExcludePath ^/snap
+
+# userspace
+ExcludePath \.php$
+ExcludePath ^/home/.+/.steam
+ExcludePath /node_modules/
+ExcludePath ^/home/.+/\.config
+ExcludePath /docker/volumes/
+ExcludePath /\.git/
+#+end_src
+
+** scan.conf
+#+begin_src conf :mkdirp yes :tangle src/etc/clamav/tid-scan.conf :tangle no
+NICE_PRIORITY 19 #Lowest -n
+IONICE_CLASS 3 #only run when no other io requests -c
+# IONICE_LEVEL 5 #0-7 , 0: highest priority within class -n; does not work with -c3                           
+#+end_src
+
+** clam-scan.sh
+- source :: https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications
+
+#+begin_src sh :mkdirp yes :tangle src/usr/local/sbin/clamav-scan :shebang "#!/bin/bash"
+#!/bin/bash
+
+export LOG="/var/log/clamav/scan.log"
+export TARGET="/home/"
+export SUMMARY_FILE=`mktemp`
+export FIFO_DIR=`mktemp -d`
+export FIFO="$FIFO_DIR/log"
+
+export SCAN_STATUS
+export INFECTED_SUMMARY
+export XUSERS
+
+
+function notify {
+  local title=$1
+  local body=$2
+    
+  # Send the alert to systemd logger if exist
+  if [[ -n $(command -v systemd-cat) ]] ; then
+    echo "$title - $body" | /usr/bin/systemd-cat -t clamav -p emerg 
+  fi
+
+  # Send an alert to all graphical users.
+  XUSERS=($(who|awk '{print $1$NF}'|sort -u))
+  for XUSER in $XUSERS; do
+    NAME=(${XUSER/(/ })
+    DISPLAY=${NAME[1]/)/}
+    DBUS_ADDRESS=unix:path=/run/user/$(id -u ${NAME[0]})/bus
+    echo "run $NAME - $DISPLAY - $DBUS_ADDRESS -" >> /tmp/testlog
+    /usr/bin/sudo -u ${NAME[0]} DISPLAY=${DISPLAY} \
+      DBUS_SESSION_BUS_ADDRESS=${DBUS_ADDRESS} \
+      PATH=${PATH} \
+      /usr/bin/notify-send -i security-low "$title" "$body"
+  done
+
+}
+
+# -------------------- START SCAN -----------------------
+
+mkfifo "$FIFO"
+tail -f "$FIFO" | tee -a "$LOG" "$SUMMARY_FILE" &
+
+notify "Virus scan started" ""
+
+echo "------------ SCAN START ------------" > "$FIFO"
+echo "Running scan on `date`" > "$FIFO"
+echo "Scanning $TARGET" > "$FIFO"
+ionice -c3 nice -n19 clamdscan --infected --multiscan --fdpass --stdout "$TARGET" | grep -vE 'WARNING|ERROR|^$' > "$FIFO"
+
+SCAN_STATUS="${PIPESTATUS[0]}"
+echo > "$FIFO" 
+
+INFECTED_SUMMARY=`cat "$SUMMARY_FILE" | grep "Infected files"`
+
+rm "$SUMMARY_FILE"
+rm "$FIFO"
+rmdir "$FIFO_DIR"
+
+if [[ "$SCAN_STATUS" -eq "1" ]] ; then
+    notify "Virus signature(s) found" "$INFECTED_SUMMARY"
+    exit $SCAN_STATUS
+fi
+
+if [[ "$SCAN_STATUS" -eq "2" ]] ; then
+    notify "Error running virusscanner" "please check logs"
+    exit $SCAN_STATUS
+fi
+
+notify "Scan complete, nothing found"
+#+end_src
+   
+ 
+*** Notes                                                          :noexport:
+- configs :: https://devicetests.com/best-way-read-config-file-bash#google_vignette
+- deb installers :: https://www.iodigital.com/en/history/intracto/creating-debianubuntu-deb-packages 
+- fakepackage (for testing installation) :: https://superuser.com/questions/1271145/how-do-you-create-a-fake-install-of-a-debian-package-for-use-in-testing
+- devscripts (apt) :: various scripts for bep package maintainers.
+
+  
+* Archive
+
+** Notes
+- dont run as root, [[https://www.reddit.com/r/linuxadmin/comments/b3gvgj/comment/ej0qkdi/]]
+
+- clamdscan gebruikt config https://linux.die.net/man/5/clamd.conf
+- =MaxThreads= 4 (of 20% van nproc output?)
+- =ExcludePaths= (wildcard support?)
+- Quarantine dir
+- scripts
+  1. entrypoint for manual scan
+     1. leverage dbus for progress updates/status?
+  2. entrypoint for scheduled scan (powered by user cron, triggers 1.)
+  3. notification script on virus found
+     =VirusEvent= /path/to/script.sh --file=%v
+  4. installation/(re-)configuration scripts
+
+- wrap everyting in a .deb  
+
+- nice, ionice
+- systemd timers vs cron ?
+
+
+** Erics initial script
+#+begin_src sh 
+#!/bin/bash
+# This file is automatically generated by tangling tid-clamav.org, do not modify
+
+PROCS=4
+echo "building file list to scan"
+
+ROOT=/home/jeroen/Downloads
+
+tmp=/tmp/scan.list
+output=/tmp/scan.out
+echo "" > $output
+echo "" > $tmp
+find $ROOT -xdev -type f \
+     -not -path "*/vendor/*.php" \
+     -not -path "*/.steam/*" \
+     -not -path "/usr/src/*" \
+     -not -path "*/.cargo/*" \
+     -not -path "/var/log/journal/*" \
+     -not -path "*/.local/share/*" \
+     -not -path "*/go/pkg/*" \
+     -not -path "*/.config/*" \
+     -not -path "*/node_modules/*" \
+     -not -path "*/var/lib/docker/*" \
+     -not -path "*/.cache/*" \
+     -not -path "*/.rustup/*" \
+     -not -path "*/composer/cache/*" \
+     -not -path "*/.git/*" \
+     -not -path "*/.config/*" \
+     -not -path "*/docker/volumes/*" \
+     -print0 > $tmp
+size=$(grep -cz '^' $tmp)
+echo "Scanning $size files with $PROCS processors"
+cat $tmp | pv -l -p -0 -s $size | xargs -0 clamdscan --fdpass >> $output
+#+end_src
+
+
