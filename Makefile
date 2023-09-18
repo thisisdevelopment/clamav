@@ -1,10 +1,13 @@
-build:
+tangle:
 	emacs --batch -l org --eval "(org-babel-tangle-file \"tid-clamav.org\")"
+
+build: tangle
 	mkdir -p build && dpkg-deb --build src build/clamav-scan.deb
 
-install:
+install: 
 	cp src/usr/local/sbin/clamav-scan /usr/local/sbin/clamav-scan
 	cp src/etc/clamav/clamav.conf /etc/clamav/clamav.conf
+	cp src/etc/clamav/scan.conf /etc/clamav/scan.conf
 	cp src/etc/systemd/system/clamav-scan.service /etc/systemd/system/clamav-scan.service
 	cp src/etc/systemd/system/clamav-scan.timer /etc/systemd/system/clamav-scan.timer
 
