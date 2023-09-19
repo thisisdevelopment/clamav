@@ -1,29 +1,29 @@
-#+TITLE: This Is =clamav-scan=
+#+TITLE: Th[is] =clamav-scan=
 #+SUBTITLE: A collection of scripts for easy, faster and schedule-based clamd-scanning
 
 * About this package
 This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
 
-The configuration file defines a few paths that will be skipped during scans that because they both a) contain a lot of files and b) don't have a big chance of catching infected files.
+The configuration file defines a few paths that will be skipped during scans because they both a) contain a lot of files and b) don't have a big chance of catching infected files.
 
-The sourcecode largely based on [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][this gist]] by John A. Fedoruk, with some small modifications. 
+The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][this gist]] by John A. Fedoruk, with some small modifications. 
 
 
 * Installation
 
-To install this package on Debian based systems (like Ubuntu) download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases][releases page]] and run the following commands.  This will try to install the package using =dpkg= and if it fails, it will fall back to =apt= to install the missing dependencies and finish the installation.
+To install this package on Debian based systems (like Ubuntu) download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases][releases page]] and run the commands listed below.  This will try to install the package using =dpkg= and if it fails, it will fall back to =apt= to install the missing dependencies and finish the installation.
 
 #+begin_src sh :noweb yes 
 sudo dpkg -i clamav-scan.deb || sudo apt install -f
 #+end_src
 
-To de-install =clamav-scan= run the following command to remove the package and clean its dependencies
+To de-install =clamav-scan=, run the following command to remove the package and clean its dependencies
 #+begin_src sh
 sudo apt remove clamav-scan && sudo apt autoremove
 #+end_src
 
 * Testing
-You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  This file is not an actual virus and harmless.  Its purpose is to verify a virusscanner works as expected.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
+You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  Its purpose is to verify a virusscanner works as expected, so its not an actual virus.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
 
 * Development
 ** Package version 
@@ -37,12 +37,12 @@ The package version defined here will be reflected throughout the entire package
 ** Scripts and configs
   
 *** clam-scan.sh
-This script will be executed to initiate the scan.  The first part of the scripts consists of scan configuration and reading the additional scan.conf file.
+This script will be executed to initiate the scan.  The first part of the scripts consists of scan configuration and sourcing the additional scan.conf file.
   
 #+begin_src sh :mkdirp yes :tangle src/usr/local/sbin/clamav-scan :shebang "#!/bin/bash" :noweb yes
 # clamav-scan.sh
 export CLAMAV_SCAN_VERSION="<<VERSION>>"
-export lOG="/var/log/clamav/scan.log"
+export LOG="/var/log/clamav/scan.log"
 
 # set defaults 
 export SCAN_PATH="/home/"
@@ -103,6 +103,9 @@ notify "Virus scan started" ""
 echo "------------ SCAN START ------------" > "$FIFO"
 echo "Running scan on `date`" > "$FIFO"
 echo "Scanning $SCAN_PATH" > "$FIFO"
+echo "Running with ionice class $IONICE_CLASS" > "$FIFO"
+echo "Running with nice level $NICE_PRIORITY" > "$FIFO"
+
 ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --infected --multiscan --fdpass --stdout "$SCAN_PATH" | grep -vE 'WARNING|ERROR|^$' > "$FIFO"
 
 SCAN_STATUS="${PIPESTATUS[0]}"
@@ -181,10 +184,10 @@ ExcludePath /\.git/
 #+end_src
 
 *** scan.conf
-#+begin_src conf :mkdirp yes :tangle src/etc/clamav/scan.conf 
-nice_priority 19 # values ranging -20 to 19, with -20 getting highest priority
-ionice_class 3 # only run when no other io requests -c
-scan_path "/home/"
+#+begin_src sh :mkdirp yes :tangle src/etc/clamav/scan.conf
+NICE_PRIORITY=19 # values ranging -20 to 19, with -20 getting highest priority
+IONICE_CLASS=3 # only run when no other io requests -c
+SCAN_PATH="/home/"
 #+end_src
 
 *** systemd.timer
@@ -219,7 +222,7 @@ WantedBy=multi-user.target
 #+end_src
 
 ** Build
-This package is written using literate progamming in org-mode files.  To compile the codeblock into actual scripts you'll need emacs to tangle the files.  upon tangling the scripts will get automatically get the appropriate shebang and chmod changes if applicable.  missing directories will also be created automatically.
+This package is written using [[https://en.wikipedia.org/wiki/Literate_programming][literate progamming]] in org-mode files.  To compile the codeblock into actual scripts you'll need Emacs to "tangle" the files.  Upon tangling the scripts will automatically get the appropriate shebang and chmod changes if applicable.  Missing directories will also be created automatically.
 
 With Emacs installed you should be able to tangle the scripts using make.
 #+begin_src sh
@@ -244,6 +247,12 @@ Installing the generated scripts on your system can be done using the =install= 
 sudo make install
 #+end_src
 
+** Docker
+You can also use an Emacs Docker image to tangle the files.
+
+ #+begin_src sh :tangle no
+docker run -v ".:/app" -u `id -u`:`id -g` -w /app silex/emacs:28 emacs --batch -l org --eval "(org-babel-tangle-file \"tid-clamav.org\")"
+ #+end_src
 
 ** Debian package
 This package comes with Debian control and postinst files allowing us to generate a Debian package for easy installation.  The Debian package can be downloaded from the releases page. 
