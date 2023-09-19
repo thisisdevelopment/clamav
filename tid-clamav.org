@@ -135,7 +135,7 @@ notify "Scan complete, nothing found"
 *** clamav.conf
 #+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamav.conf
 # use sockets
-Localsocket /var/run/clamav/clamd.ctl
+LocalSocket /var/run/clamav/clamd.ctl
 FixStaleSocket true
 LocalSocketGroup clamav
 LocalSocketMode 666
@@ -182,8 +182,8 @@ ExcludePath /\.git/
 
 *** scan.conf
 #+begin_src conf :mkdirp yes :tangle src/etc/clamav/scan.conf 
-nice_priority 19 #lowest -n
-ionice_class 3 #only run when no other io requests -c
+nice_priority 19 # values ranging -20 to 19, with -20 getting highest priority
+ionice_class 3 # only run when no other io requests -c
 scan_path "/home/"
 #+end_src
 
