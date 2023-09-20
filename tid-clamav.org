@@ -277,6 +277,7 @@ fi
 After installation the timer will automatically activated by the installer using this =postinst= script.
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/postinst :shebang "#!/bin/bash"
 systemctl daemon-reload
+systemctl restart clamav-daemon.service
 systemctl enable --now clamav-scan.timer
 #+end_src
 
