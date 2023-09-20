@@ -31,7 +31,7 @@ The package version defined here will be reflected throughout the entire package
 
 #+name: version
 #+begin_src :export none
-0.2
+0.3
 #+end_src
 
 ** Scripts and configs
@@ -267,8 +267,8 @@ Depends: clamav, clamav-daemon
 #+end_src
 
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/preinst :shebang "#!/bin/bash"
-CLAMAV_CONF="/etc/clamav/clamav.conf"
-BACKUP_LOCATION="/etc/clamav/clamav.conf.bck"
+CLAMAV_CONF="/etc/clamav/clamd.conf"
+BACKUP_LOCATION="/etc/clamav/clamd.conf.bck"
 if [ -f "$CLAMAV_CONF" -a ! -f "$BACKUP_LOCATION" ]; then
     cp "$CLAMAV_CONF" "$BACKUP_LOCATION"
 fi
@@ -286,8 +286,8 @@ systemctl disable clamav-scan.timer
 #+end_src
 
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/postrm :shebang "#!/bin/bash"
-CLAMAV_CONF="/etc/clamav/clamav.conf"
-BACKUP_LOCATION="/etc/clamav/clamav.conf.bck"
+CLAMAV_CONF="/etc/clamav/clamd.conf"
+BACKUP_LOCATION="/etc/clamav/clamd.conf.bck"
 if [ -f "$BACKUP_LOCATION" ]; then
     mv "$BACKUP_LOCATION" "$CLAMAV_CONF"
 fi
