@@ -31,7 +31,7 @@ The package version defined here will be reflected throughout the entire package
 
 #+name: version
 #+begin_src :export none
-0.1
+0.2
 #+end_src
 
 ** Scripts and configs
@@ -136,7 +136,7 @@ notify "Scan complete, nothing found"
    
    
 *** clamav.conf
-#+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamav.conf
+#+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamd.conf
 # use sockets
 LocalSocket /var/run/clamav/clamd.ctl
 FixStaleSocket true
