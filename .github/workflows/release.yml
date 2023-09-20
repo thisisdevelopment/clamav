@@ -21,4 +21,5 @@ jobs:
     - name: GH Release
       uses: softprops/action-gh-release@v0.1.15
       with:
+        prerelease: false
         files: build/clamav-scan.deb
