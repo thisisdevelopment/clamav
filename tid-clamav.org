@@ -31,7 +31,7 @@ The package version defined here will be reflected throughout the entire package
 
 #+name: version
 #+begin_src :export none
-0.3
+0.3-rc.3
 #+end_src
 
 ** Scripts and configs
