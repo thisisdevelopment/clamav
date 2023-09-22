@@ -11,15 +11,15 @@ The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/1982054
 
 * Installation
 
-To install this package on Debian based systems (like Ubuntu) download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases][releases page]] and run the commands listed below.  This will try to install the package using =dpkg= and if it fails, it will fall back to =apt= to install the missing dependencies and finish the installation.
-
+To install this package we first need to install the dependencies, followed by the package itself.
 #+begin_src sh :noweb yes 
-sudo dpkg -i clamav-scan.deb || sudo apt install -f
+sudo apt install clamav clamav-daemon clamav-freshclam
+sudo dpkg -i clamav-scan.deb
 #+end_src
 
-To de-install =clamav-scan=, run the following command to remove the package and clean its dependencies
+To de-install =clamav-scan= and its dependencies, run the following command:
 #+begin_src sh
-sudo apt remove clamav-scan && sudo apt autoremove
+sudo apt remove clamav-scan clamav clamav-daemon clamav-freshclam
 #+end_src
 
 * Testing
@@ -31,7 +31,7 @@ The package version defined here will be reflected throughout the entire package
 
 #+name: version
 #+begin_src :export none
-0.4
+0.5
 #+end_src
 
 ** Scripts and configs
@@ -150,9 +150,9 @@ LogFileMaxSize 4294967295
 LogTime yes
 LogRotate yes
 ExtendedDetectionInfo yes
-MaxConnectionQueueLength 15
+MaxConnectionQueueLength 200
 ReadTimeout 180
-SendBufTimeout 200
+SendBufTimeout 500
 SelfCheck 3600
 User clamav
 BytecodeTimeout 60000
@@ -160,6 +160,9 @@ MaxScanTime 120000
 MaxRecursion 16
 PCREMatchLimit 10000
 PCRERecMatchLimit 5000
+CrossFilesystems no
+CommandReadTimeout 60
+IdleTimeout 120
 
 # this might need to be determined by the number of available CPUs
 MaxThreads 4
@@ -181,6 +184,9 @@ ExcludePath /node_modules/
 ExcludePath ^/home/.+/\.config
 ExcludePath /docker/volumes/
 ExcludePath /\.git/
+ExcludePath /docker/overlay2/
+ExcludePath ^/dev
+ExcludePath ^/tmp
 #+end_src
 
 *** scan.conf
@@ -263,7 +269,7 @@ Version: <<VERSION>>
 Maintainer: Jeroen Faijdherbe
 Architecture: all
 Description: Helper scripts for clamav scan automation
-Depends: clamav, clamav-daemon
+Depends: clamav, clamav-daemon, clamav-freshclam
 #+end_src
 
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/preinst :shebang "#!/bin/bash"

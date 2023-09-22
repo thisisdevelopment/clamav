@@ -12,6 +12,7 @@ install:
 	cp src/etc/systemd/system/clamav-scan.timer /etc/systemd/system/clamav-scan.timer
 
 	systemctl daemon-reload
+	systemctl restart clamav-daemon.service
 
 run:
 	systemctl start clamav-scan.service
