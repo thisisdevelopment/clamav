@@ -16,6 +16,8 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Build
+      env:
+        VERSION: ${{ github.ref_name }}
       run: 'make clean build'
 
     - name: GH Release

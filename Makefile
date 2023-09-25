@@ -1,5 +1,5 @@
 tangle:
-	emacs --batch -l org --eval "(org-babel-tangle-file \"tid-clamav.org\")"
+	emacs --batch -l org --eval "(setq org-confirm-babel-evaluate nil)" --eval "(org-babel-tangle-file \"tid-clamav.org\")"
 
 build: tangle
 	mkdir -p build && dpkg-deb --build src build/clamav-scan.deb

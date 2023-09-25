@@ -41,7 +41,7 @@ This script will be executed to initiate the scan.  The first part of the script
   
 #+begin_src sh :mkdirp yes :tangle src/usr/local/sbin/clamav-scan :shebang "#!/bin/bash" :noweb yes
 # clamav-scan.sh
-export CLAMAV_SCAN_VERSION="<<VERSION>>"
+export CLAMAV_SCAN_VERSION="<<get-package-version()>>"
 export LOG="/var/log/clamav/scan.log"
 
 # set defaults 
@@ -106,7 +106,7 @@ echo "Scanning $SCAN_PATH" > "$FIFO"
 echo "Running with ionice class $IONICE_CLASS" > "$FIFO"
 echo "Running with nice level $NICE_PRIORITY" > "$FIFO"
 
-ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --infected --multiscan --fdpass --stdout "$SCAN_PATH" | grep -vE 'WARNING|^$' > "$FIFO"
+ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --ping 6:5 --wait --infected --multiscan --fdpass --stdout "$SCAN_PATH" | grep -vE 'WARNING|^$' > "$FIFO"
 
 SCAN_STATUS="${PIPESTATUS[0]}"
 echo > "$FIFO" 
@@ -257,7 +257,7 @@ sudo make install
 You can also use an Emacs Docker image to tangle the files.
 
  #+begin_src sh :tangle no
-docker run -v ".:/app" -u `id -u`:`id -g` -w /app silex/emacs:28 emacs --batch -l org --eval "(org-babel-tangle-file \"tid-clamav.org\")"
+docker run -v ".:/app" -u `id -u`:`id -g` -e VERSION=v2.0 -w /app silex/emacs:28 emacs --batch -l org --eval "(setq org-confirm-babel-evaluate nil)" --eval "(org-babel-tangle-file \"tid-clamav.org\")"
  #+end_src
 
 ** Debian package
@@ -265,7 +265,7 @@ This package comes with Debian control and postinst files allowing us to generat
 
 #+begin_src debian-control :mkdirp yes :tangle src/DEBIAN/control :noweb yes 
 Package: clamav-scan
-Version: <<VERSION>>
+Version: <<get-package-version()>>
 Maintainer: Jeroen Faijdherbe
 Architecture: all
 Description: Helper scripts for clamav scan automation
@@ -319,3 +319,15 @@ sudo make run
 # or: sudo systemctl start clamav-scan.service
 #+end_src
 
+
+* Version
+This codeblock reads the =VERSION= environment variable and normalizes it so it can be embedded in both the Debian =control= file and the bash script.  If no =VERSION= is found, it will fall back to a default.  The output of this block can be embedded in other codeblocks using the noweb syntax.
+
+#+NAME: get-package-version
+#+BEGIN_SRC emacs-lisp :results value :exports none
+(let ((version (getenv "VERSION"))
+      (default "1.0.0-local"))
+  (if (and version (not (string= "" version)))
+      (replace-regexp-in-string "^[^0-9]*" "" version)
+    default))
+#+END_SRC
