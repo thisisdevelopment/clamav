@@ -26,13 +26,6 @@ sudo apt remove clamav-scan clamav clamav-daemon clamav-freshclam
 You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  Its purpose is to verify a virusscanner works as expected, so its not an actual virus.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
 
 * Development
-** Package version 
-The package version defined here will be reflected throughout the entire package
-
-#+name: version
-#+begin_src :export none
-0.5
-#+end_src
 
 ** Scripts and configs
   
