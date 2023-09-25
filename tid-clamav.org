@@ -319,7 +319,7 @@ This codeblock reads the =VERSION= environment variable and normalizes it so it 
 #+NAME: get-package-version
 #+BEGIN_SRC emacs-lisp :results value
 (let ((version (getenv "VERSION"))
-      (default "1.0.0-local"))
+      (default "0.1-local"))
   (if (and version (not (string= "" version)))
       (replace-regexp-in-string "^[^0-9]*" "" version)
     default))
