@@ -324,7 +324,7 @@ sudo make run
 This codeblock reads the =VERSION= environment variable and normalizes it so it can be embedded in both the Debian =control= file and the bash script.  If no =VERSION= is found, it will fall back to a default.  The output of this block can be embedded in other codeblocks using the noweb syntax.
 
 #+NAME: get-package-version
-#+BEGIN_SRC emacs-lisp :results value :exports none
+#+BEGIN_SRC emacs-lisp :results value
 (let ((version (getenv "VERSION"))
       (default "1.0.0-local"))
   (if (and version (not (string= "" version)))
