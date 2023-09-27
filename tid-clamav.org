@@ -129,7 +129,7 @@ notify "Scan complete, nothing found"
    
    
 *** clamav.conf
-#+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamd.conf
+#+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamd.conf :noweb yes
 # use sockets
 LocalSocket /var/run/clamav/clamd.ctl
 FixStaleSocket true
@@ -180,6 +180,8 @@ ExcludePath /\.git/
 ExcludePath /docker/overlay2/
 ExcludePath ^/dev
 ExcludePath ^/tmp
+
+# clamd.conf provided by clamav-scan v<<get-package-version()>>
 #+end_src
 
 *** scan.conf
@@ -265,13 +267,6 @@ Description: Helper scripts for clamav scan automation
 Depends: clamav, clamav-daemon, clamav-freshclam
 #+end_src
 
-#+begin_src sh :mkdirp yes :tangle src/DEBIAN/preinst :shebang "#!/bin/bash"
-CLAMAV_CONF="/etc/clamav/clamd.conf"
-BACKUP_LOCATION="/etc/clamav/clamd.conf.bck"
-if [ -f "$CLAMAV_CONF" -a ! -f "$BACKUP_LOCATION" ]; then
-    cp "$CLAMAV_CONF" "$BACKUP_LOCATION"
-fi
-#+end_src
 
 After installation the timer will automatically activated by the installer using this =postinst= script.
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/postinst :shebang "#!/bin/bash"
@@ -283,14 +278,6 @@ systemctl enable --now clamav-scan.timer
 Obligatory =prerm= script that will be invoked upon removal, disabling the timer that will be removed. 
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/prerm :shebang "#!/bin/bash"
 systemctl disable clamav-scan.timer
-#+end_src
-
-#+begin_src sh :mkdirp yes :tangle src/DEBIAN/postrm :shebang "#!/bin/bash"
-CLAMAV_CONF="/etc/clamav/clamd.conf"
-BACKUP_LOCATION="/etc/clamav/clamd.conf.bck"
-if [ -f "$BACKUP_LOCATION" ]; then
-    mv "$BACKUP_LOCATION" "$CLAMAV_CONF"
-fi
 #+end_src
 
 ** Local
