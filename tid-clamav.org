@@ -11,15 +11,16 @@ The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/1982054
 
 * Installation
 
-To install this package we first need to install the dependencies, followed by the package itself.
+To install this package we first need to install the dependencies, followed by the package itself.  As we'll only be scanning files in the background we do not need the =clamav= package, but only the daemon and database-tool.  =clamav-daemon= depends on =clamdscan= which is used to send files to =clamav-daemon=.  This package – =clamav-scan= – partially replaces =clamdscan= which provides a default =clamd.conf= config file.
+
 #+begin_src sh :noweb yes 
-sudo apt install clamav clamav-daemon clamav-freshclam
+sudo apt install clamav-daemon clamav-freshclam
 sudo dpkg -i clamav-scan.deb
 #+end_src
 
 To de-install =clamav-scan= and its dependencies, run the following command:
 #+begin_src sh
-sudo apt remove clamav-scan clamav clamav-daemon clamav-freshclam
+sudo apt remove clamav-scan clamav-daemon clamav-freshclam --purge
 #+end_src
 
 * Testing
@@ -264,7 +265,10 @@ Version: <<get-package-version()>>
 Maintainer: Jeroen Faijdherbe
 Architecture: all
 Description: Helper scripts for clamav scan automation
-Depends: clamav, clamav-daemon, clamav-freshclam
+Depends: clamav-daemon, clamav-freshclam
+Pre-Depends: clamdscan
+Replaces: clamdscan
+Provides: clamav-scan
 #+end_src
 
 
