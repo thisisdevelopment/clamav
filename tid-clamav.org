@@ -11,6 +11,11 @@ The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/1982054
 
 * Installation
 
+Download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases/latest][releases page]],  Or download using the following command.
+#+begin_src sh
+wget https://github.com/thisisdevelopment/clamav/releases/latest/download/clamav-scan.deb
+#+end_src
+  
 To install this package we first need to install the dependencies, followed by the package itself.  As we'll only be scanning files in the background we do not need the =clamav= package, but only the daemon and database-tool.  =clamav-daemon= depends on =clamdscan= which is used to send files to =clamav-daemon=.  This package – =clamav-scan= – partially replaces =clamdscan= which provides a default =clamd.conf= config file.
 
 #+begin_src sh :noweb yes 
