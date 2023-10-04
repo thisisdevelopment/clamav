@@ -1,7 +1,9 @@
 #+TITLE: Th[is] =clamav-scan=
 #+SUBTITLE: A collection of scripts for easy, faster and schedule-based clamd-scanning
+#+EXPORT_FILE_NAME: docs/index.md
+#+OPTIONS: tags:nil
 
-* About this package
+* About this package                                                 :export:
 This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
 
 The configuration file defines a few paths that will be skipped during scans because they both a) contain a lot of files and b) don't have a big chance of catching infected files.
@@ -9,9 +11,9 @@ The configuration file defines a few paths that will be skipped during scans bec
 The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][this gist]] by John A. Fedoruk, with some small modifications. 
 
 
-* Installation
+* Installation                                                       :export:
 
-Download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases/latest][releases page]],  Or download using the following command.
+Download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases/latest][releases page]], or download directly using the following command.
 #+begin_src sh
 wget https://github.com/thisisdevelopment/clamav/releases/latest/download/clamav-scan.deb
 #+end_src
@@ -28,7 +30,7 @@ To de-install =clamav-scan= and its dependencies, run the following command:
 sudo apt remove clamav-scan clamav-daemon clamav-freshclam --purge
 #+end_src
 
-* Testing
+* Testing                                                            :export:
 You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  Its purpose is to verify a virusscanner works as expected, so its not an actual virus.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
 
 * Development

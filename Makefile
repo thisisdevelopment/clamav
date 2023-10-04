@@ -1,8 +1,15 @@
 tangle:
 	emacs --batch -l org --eval "(setq org-confirm-babel-evaluate nil)" --eval "(org-babel-tangle-file \"tid-clamav.org\")"
 
-build: tangle
+build-deb: tangle
 	mkdir -p build && dpkg-deb --build src build/clamav-scan.deb
+
+build: build-deb build-docs
+
+build-docs:
+	emacs --batch -l org --eval "(find-file \"tid-clamav.org\")" \
+              --eval "(setq org-confirm-babel-evaluate nil)" \
+              --eval "(org-md-export-to-markdown)"
 
 install: 
 	cp src/usr/local/sbin/clamav-scan /usr/local/sbin/clamav-scan
