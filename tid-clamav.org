@@ -3,7 +3,6 @@
 #+AUTHOR: Jeroen Faijdherbe
 #+EXPORT_FILE_NAME: docs/index.md
 #+OPTIONS: tags:nil toc:nil
-#+PROPERTY: header-args :comments org
 
 * About this package                                                 :export:
 This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce
@@ -113,7 +112,7 @@ sudo make install
   
 *** clam-scan.sh
     :PROPERTIES:
-    :header-args: :tangle src/usr/local/sbin/clamav-scan :mkdirp yes :comments org :noweb yes :shebang "#!/bin/bash"
+    :header-args: :tangle src/usr/local/sbin/clamav-scan :mkdirp yes :comments org :noweb yes :shebang "#!/bin/bash" :comments org
     :END:
     
 This script will be executed to initiate the scan.  The first part of the scripts consists of scan
