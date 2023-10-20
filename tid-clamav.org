@@ -1,26 +1,34 @@
 #+TITLE: Th[is] =clamav-scan=
 #+SUBTITLE: A collection of scripts for easy, faster and schedule-based clamd-scanning
+#+AUTHOR: Jeroen Faijdherbe
 #+EXPORT_FILE_NAME: docs/index.md
-#+OPTIONS: tags:nil
+#+OPTIONS: tags:nil toc:nil
+#+PROPERTY: header-args :comments org
 
 * About this package                                                 :export:
-This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
+This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce
+the amount of work to get clamd running periodically and not taking up all available resources
+during scans.
 
-The configuration file defines a few paths that will be skipped during scans because they both a) contain a lot of files and b) don't have a big chance of catching infected files.
+The configuration file defines a few paths that will be skipped during scans because they both a)
+contain a lot of files and b) don't have a big chance of catching infected files.
 
-The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][this gist]] by John A. Fedoruk, with some small modifications. 
+The sourcecode is largely based on [[https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications][this gist]] by John A. Fedoruk, with some small modifications.
 
 
 * Installation                                                       :export:
-
 Download the latest release from the [[https://github.com/thisisdevelopment/clamav/releases/latest][releases page]], or download directly using the following command.
 #+begin_src sh
 wget https://github.com/thisisdevelopment/clamav/releases/latest/download/clamav-scan.deb
 #+end_src
   
-To install this package we first need to install the dependencies, followed by the package itself.  As we'll only be scanning files in the background we do not need the =clamav= package, but only the daemon and database-tool.  =clamav-daemon= depends on =clamdscan= which is used to send files to =clamav-daemon=.  This package – =clamav-scan= – partially replaces =clamdscan= which provides a default =clamd.conf= config file.
+To install this package we first need to install the dependencies, followed by the package itself.
+As we'll only be scanning files in the background we do not need the =clamav= package, but only the
+daemon and database-tool.  =clamav-daemon= depends on =clamdscan= which is used to send files to
+=clamav-daemon=.  This package – =clamav-scan= – partially replaces =clamdscan= which provides a
+default =clamd.conf= config file.
 
-#+begin_src sh :noweb yes 
+#+begin_src sh 
 sudo apt install clamav-daemon clamav-freshclam
 sudo dpkg -i clamav-scan.deb
 #+end_src
@@ -30,20 +38,94 @@ To de-install =clamav-scan= and its dependencies, run the following command:
 sudo apt remove clamav-scan clamav-daemon clamav-freshclam --purge
 #+end_src
 
+* Scan status                                                        :export:
+You should be able to inspect the current scan (or last scan in case no scan is being performed)
+with the =clamav-status= command.
+This will present you with an output in json with details of the scan, including possible infected
+files found.  Times are in Unix timestamps.  Pipe the result through =jq= for enhanced reability.
+#+begin_src sh :results output
+clamav-status | jq
+#+end_src
+
+#+begin_example js
+{
+  "version": "0.1-local",
+  "status": "SCANNING",
+  "last_scan_started": 1697792614,
+  "run_time": 42,
+  "avg_time": 1739,
+  "estimated_progress": 2,
+  "warnings": [
+    "/home/jeroen/virustest.zip: Win.Test.EICAR_HDB-1",
+    "/home/jeroen/eicar.com: Win.Test.EICAR_HDB-1"
+  ]
+}
+#+end_example
+
 * Testing                                                            :export:
-You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in your homefolder.  Its purpose is to verify a virusscanner works as expected, so its not an actual virus.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
+You can verify that this package works by downloading a /TEST/ virus and leaving it somewhere in
+your homefolder.  Its purpose is to verify a virusscanner works as expected, so its not an actual
+virus.  You can read more about this file, and download it from [[https://www.eicar.org/download-anti-malware-testfile/][the EICAR.org website]].
+
+* Building
+This package is written using [[https://en.wikipedia.org/wiki/Literate_programming][literate progamming]] in org-mode files.  To compile the codeblock into
+actual scripts you'll need Emacs to "tangle" the files.  Upon tangling the scripts will
+automatically get the appropriate shebang and chmod changes if applicable.  Missing directories will
+also be created automatically.
+
+With Emacs installed you should be able to tangle the scripts using make.
+#+begin_src sh
+make tangle
+
+# the second time around you might want to run make clean first.
+# make clean tangle
+#+end_src
+
+Another way is to open the =.org= file in emacs, and running =m-x org-babel-tangle ret=
+(=C-c C-v t=). When tangling from within Emacs, you will regularly be prompted to confirm the
+execution of code. 
+This is the code that determines the current build [[Version][version]].
+
+To disable these prompts you can evaluate this codeblock that will disable all future confimations
+#+begin_src emacs-lisp :tangle no :results none
+(setq org-confirm-babel-evaluate niol)
+#+end_src
+
+To generate the debian package you can run the =build= command.  /This command automatically runs
+=tangle= before generating the package so manual changes to the files will be overwritten./
+
+#+begin_src sh
+make build
+## or even better:
+# make clean build
+#+end_src
+
+Installing the generated scripts on your system can be done using the =install= command.  This does
+not use the generated Debian package, but copies the files manually instead.  To install the files,
+=sudo= privileges are required.
+#+begin_src sh
+sudo make install
+#+end_src
 
 * Development
 
 ** Scripts and configs
   
 *** clam-scan.sh
-This script will be executed to initiate the scan.  The first part of the scripts consists of scan configuration and sourcing the additional scan.conf file.
-  
-#+begin_src sh :mkdirp yes :tangle src/usr/local/sbin/clamav-scan :shebang "#!/bin/bash" :noweb yes
+    :PROPERTIES:
+    :header-args: :tangle src/usr/local/sbin/clamav-scan :mkdirp yes :comments org :noweb yes :shebang "#!/bin/bash"
+    :END:
+    
+This script will be executed to initiate the scan.  The first part of the scripts consists of scan
+configuration and sourcing the additional scan.conf file.
+
+The progress log will be used by =clamav-status= to guestimate the status of a running scan, and
+to give a summary of infected files found during the last/current scan.  
+#+begin_src sh
 # clamav-scan.sh
 export CLAMAV_SCAN_VERSION="<<get-package-version()>>"
 export LOG="/var/log/clamav/scan.log"
+export PROGRESS_LOG='/var/log/clamav/progress.log'
 
 # set defaults 
 export SCAN_PATH="/home/"
@@ -56,8 +138,10 @@ if [ -f "/etc/clamav/scan.conf" ]; then
 fi
 #+end_src
 
-To be able to keep the currently logged in user up to date on the scanning progress, we need to be able to send them notifications.  We've added it to a function to make it reusable.  
-#+begin_src sh :tangle src/usr/local/sbin/clamav-scan
+To be able to keep the currently logged in user up to date on the scanning progress, we need to be
+able to send them notifications.  We've added it to a function to make it reusable.
+
+#+begin_src sh 
 # notify function, shows notifications to all logged in users
 export XUSERS
 
@@ -86,28 +170,43 @@ function notify {
 }
 #+end_src
 
-The following part encapsulates the actual scan.  it creates a few temporary files for output processing and then starts the scan.
-This piece needs some additional love like configuring the location infected files are moved to if found
-#+begin_src sh :tangle src/usr/local/sbin/clamav-scan
+The following part encapsulates the actual scan.  it creates a few temporary files for output
+processing and then starts the scan.  This piece needs some additional love like configuring the
+location infected files are moved to if found
+#+begin_src sh 
 export SUMMARY_FILE=`mktemp`
 export FIFO_DIR=`mktemp -d`
 export FIFO="$FIFO_DIR/log"
+export PROGRESS_FIFO="$FIFO_DIR/progress_log"
 
 export SCAN_STATUS
 export INFECTED_SUMMARY
+#+end_src
 
+This is the setup for various filtered channels of the clamav output.  I'm still not sure why, but
+using =mkfifo= and =grep= to grab lines ending in =FOUND= from the stream results in only outputting
+those lines whenever clamav is completely done.  Hence the switch to creating a regular file
+instead.
+#+begin_src sh 
 mkfifo "$FIFO"
-tail -f "$FIFO" | tee -a "$LOG" "$SUMMARY_FILE" &
+touch "$PROGRESS_FIFO"
 
+tail -f "$FIFO" | tee -a "$LOG" "$SUMMARY_FILE" &
+tail -f "$PROGRESS_FIFO" | grep --line-buffered -E "FOUND$" | tee -a "$PROGRESS_LOG" &
+#+end_src
+
+Send notification, add a few lines of conext to the logs, and start scanning.
+#+begin_src sh
 notify "Virus scan started" ""
+
+echo "`date +%s` START" | tee -a "$PROGRESS_LOG"
 
 echo "------------ SCAN START ------------" > "$FIFO"
 echo "Running scan on `date`" > "$FIFO"
 echo "Scanning $SCAN_PATH" > "$FIFO"
 echo "Running with ionice class $IONICE_CLASS" > "$FIFO"
 echo "Running with nice level $NICE_PRIORITY" > "$FIFO"
-
-ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --ping 6:5 --wait --infected --multiscan --fdpass --stdout "$SCAN_PATH" | grep -vE 'WARNING|^$' > "$FIFO"
+ionice -c $IONICE_CLASS nice -n $NICE_PRIORITY clamdscan --ping 6:5 --wait --multiscan --fdpass "$SCAN_PATH" | grep --line-buffered -vE 'Excluded$|WARNING|^$' | tee -a "$PROGRESS_FIFO" "$FIFO"
 
 SCAN_STATUS="${PIPESTATUS[0]}"
 echo > "$FIFO" 
@@ -115,12 +214,17 @@ echo > "$FIFO"
 INFECTED_SUMMARY=`cat "$SUMMARY_FILE" | grep "Infected files"`
 
 rm "$SUMMARY_FILE"
-rm "$FIFO"
+rm "$FIFO" "$PROGRESS_FIFO"
 rmdir "$FIFO_DIR"
 #+end_src
 
-And finally we check the response code of the scan and notify the user about the result.  
-#+begin_src sh :tangle src/usr/local/sbin/clamav-scan
+We'll mark the scan as completed in the progress log
+#+begin_src sh 
+echo "`date +%s` FINISHED" | tee -a "$PROGRESS_LOG"
+#+end_src
+
+And finally we check the response code of the scan and notify the user about the result.
+#+begin_src sh 
 
 if [[ "$SCAN_STATUS" -eq "1" ]] ; then
     notify "Virus signature(s) found" "$INFECTED_SUMMARY"
@@ -135,7 +239,107 @@ fi
 notify "Scan complete, nothing found"
 #+end_src
    
-   
+*** clamav-status.sh
+    :PROPERTIES:
+    :header-args: :tangle src/usr/local/sbin/clamav-status :mkdirp yes :comments org :noweb yes :shebang "#!/bin/bash"
+    :END:
+
+ This is a little script that guesstimates the progress of the current scan based on the time it
+ took to run the previous (5) tests.  It will output a JSON document with data.
+#+begin_src sh
+export PROGRESS_LOG="/var/log/clamav/progress.log"
+export REF_SCAN_COUNT=5
+
+CURRENT_SCAN_STATUS="unknown"
+START_PATTERN="START$"
+FINISHED_PATTERN="FINISHED$"
+FOUND_PATTERN="^(.*) FOUND$"
+
+last_run_start=0
+start_time=0
+finish_time=0
+runs=0
+avg_time=0
+declare -a times=()
+declare -a founds=()
+declare -a warnings_last_scan=()
+
+while IFS= read -r line; do
+    if [[ $runs > $(($REF_SCAN_COUNT - 1)) ]]; then
+        break;
+    fi
+
+    if [[ $CURRENT_SCAN_STATUS == "unknown" ]]; then
+        if [[ $line =~ $START_PATTERN ]]; then
+            CURRENT_SCAN_STATUS="scanning"
+            start_time=$(echo "$line" | head -n1 | cut -d " " -f1)
+        fi
+        if [[ $line =~ $FINISHED_PATTERN ]]; then
+            CURRENT_SCAN_STATUS="finished"
+        fi
+    fi
+    if [[ $line =~ $START_PATTERN ]]; then
+        start_time=$(echo "$line" | head -n1 | cut -d " " -f1)
+        if [[ $finish_time != 0 ]]; then
+          runtime=$(($finish_time-$start_time))
+          times+=($runtime)
+          avg_time=$(($avg_time + $runtime))
+          runs=$((runs+1))
+          finish_time=0
+
+        else
+            if [[ $last_run_start == 0 ]]; then
+                last_run_start=$start_time
+            fi
+        fi
+    fi
+    if [[ $line =~ $FINISHED_PATTERN ]]; then
+        finish_time=$(echo "$line" | head -n1 | cut -d " " -f1)
+    fi
+    if [[ $line =~ $FOUND_PATTERN ]]; then
+        if [[ $start_time -eq 0 ]]; then
+            founds+=("${BASH_REMATCH[1]}")
+        fi
+    fi
+done < <(tac "$PROGRESS_LOG")
+
+function output_json() {
+    local status=$1
+    local last_start=$2
+    local run_time=$3
+    local avg=$4
+    local estimated_progress=$5
+    local warnings="$6"
+
+    printf '{ "version": "%s", "status": "%s", "last_scan_started": %s, "run_time": %s, "avg_time": %s, "estimated_progress": %s,"warnings": %s}\n' \
+           "<<get-package-version()>>" $status $last_start $run_time $avg $estimated_progress "$warnings"
+    
+}
+
+let delta=$((`date +%s`-$last_run_start))
+
+let avg_time=$(($runs > 0 ? $avg_time / $runs : $avg_time))
+let progress=$(($avg_time > 0 ? ($delta*100)/$avg_time : 0))
+progress=$(($progress>100?99:$progress))
+
+warnings=$(hash jq 2> /dev/null && jq --compact-output --null-input '$ARGS.positional' --args -- "${founds[@]}" || { echo "[]"; })
+
+
+if [[ $CURRENT_SCAN_STATUS == "scanning" ]]; then
+    output_json "SCANNING" $last_run_start $delta $avg_time $progress "$warnings"
+    exit 0
+fi
+
+if [[ $CURRENT_SCAN_STATUS == "finished" ]]; then
+    output_json "FINISHED" $last_run_start ${times[0]} $avg_time 100 "$warnings"
+    exit 0
+fi
+
+output_json "UNKNOWN" 0 0 0 0 "[]"
+exit 1
+#+end_src
+
+
 *** clamav.conf
 #+begin_src conf :mkdirp yes :tangle src/etc/clamav/clamd.conf :noweb yes
 # use sockets
@@ -230,32 +434,6 @@ ExecStart=/usr/local/sbin/clamav-scan
 WantedBy=multi-user.target
 #+end_src
 
-** Build
-This package is written using [[https://en.wikipedia.org/wiki/Literate_programming][literate progamming]] in org-mode files.  To compile the codeblock into actual scripts you'll need Emacs to "tangle" the files.  Upon tangling the scripts will automatically get the appropriate shebang and chmod changes if applicable.  Missing directories will also be created automatically.
-
-With Emacs installed you should be able to tangle the scripts using make.
-#+begin_src sh
-make tangle
-
-# the second time around you might want to run make clean first.
-# make clean tangle
-#+end_src
-
-Another way is to open the =.org= file in emacs, and running =m-x org-babel-tangle ret=.
-
-To generate the debian package you can run the =build= command.  /This command automatically runs =tangle= before generating the package so manual changes to the files will be overwritten./
-
-#+begin_src sh
-make build
-## or even better:
-# make clean build
-#+end_src
-
-Installing the generated scripts on your system can be done using the =install= command.  This does not use the generated Debian package, but copies the files manually instead.  To install the files, =sudo= privileges are required.
-#+begin_src sh
-sudo make install
-#+end_src
-
 ** Docker
 You can also use an Emacs Docker image to tangle the files.
 
@@ -264,7 +442,8 @@ docker run -v ".:/app" -u `id -u`:`id -g` -e VERSION=v2.0 -w /app silex/emacs:28
  #+end_src
 
 ** Debian package
-This package comes with Debian control and postinst files allowing us to generate a Debian package for easy installation.  The Debian package can be downloaded from the releases page. 
+This package comes with Debian control and postinst files allowing us to generate a Debian package
+for easy installation.  The Debian package can be downloaded from the releases page.
 
 #+begin_src debian-control :mkdirp yes :tangle src/DEBIAN/control :noweb yes 
 Package: clamav-scan
@@ -279,14 +458,16 @@ Provides: clamav-scan
 #+end_src
 
 
-After installation the timer will automatically activated by the installer using this =postinst= script.
+After installation the timer will automatically activated by the installer using this =postinst=
+script.
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/postinst :shebang "#!/bin/bash"
 systemctl daemon-reload
 systemctl restart clamav-daemon.service
 systemctl enable --now clamav-scan.timer
 #+end_src
 
-Obligatory =prerm= script that will be invoked upon removal, disabling the timer that will be removed. 
+Obligatory =prerm= script that will be invoked upon removal, disabling the timer that will be
+removed.
 #+begin_src sh :mkdirp yes :tangle src/DEBIAN/prerm :shebang "#!/bin/bash"
 systemctl disable clamav-scan.timer
 #+end_src
@@ -312,7 +493,9 @@ sudo make run
 
 
 * Version
-This codeblock reads the =VERSION= environment variable and normalizes it so it can be embedded in both the Debian =control= file and the bash script.  If no =VERSION= is found, it will fall back to a default.  The output of this block can be embedded in other codeblocks using the noweb syntax.
+This codeblock reads the =VERSION= environment variable and normalizes it so it can be embedded in
+both the Debian =control= file and the bash script.  If no =VERSION= is found, it will fall back to
+a default.  The output of this block can be embedded in other codeblocks using the noweb syntax.
 
 #+NAME: get-package-version
 #+BEGIN_SRC emacs-lisp :results value

@@ -1,13 +1,4 @@
 
-# Table of Contents
-
-1.  [About this package](#org6de6e5c)
-2.  [Installation](#org56e6da5)
-3.  [Testing](#org80f55b8)
-
-
-<a id="org6de6e5c"></a>
-
 # About this package
 
 This package adds a few scripts and notifications around the clamdav service.  It is meant to reduce the amount of work to get clamd running periodically and not taking up all available resources during scans.
@@ -16,8 +7,6 @@ The configuration file defines a few paths that will be skipped during scans bec
 
 The sourcecode is largely based on [this gist](https://gist.github.com/johnfedoruk/19820540dc096380784c8cf0b7ef333b#system-scan-notifications) by John A. Fedoruk, with some small modifications. 
 
-
-<a id="org56e6da5"></a>
 
 # Installation
 
@@ -34,8 +23,6 @@ To de-install `clamav-scan` and its dependencies, run the following command:
 
     sudo apt remove clamav-scan clamav-daemon clamav-freshclam --purge
 
-
-<a id="org80f55b8"></a>
 
 # Testing
 
